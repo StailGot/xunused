@@ -1,4 +1,9 @@
 #include "clang/AST/AST.h"
+
+#include "clang/Serialization/ASTReader.h"
+#include "clang/Serialization/ASTWriter.h"
+
+#include "clang/AST/ASTImporter.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -9,13 +14,14 @@
 #include "clang/Tooling/AllTUsExecution.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Signals.h"
 
 #include <map>
 #include <memory>
 #include <mutex>
-
+#include <fstream>
 #include <algorithm>
 #include <execution>
 #include <iostream>
@@ -52,29 +58,57 @@ int main(int argc, const char ** argv)
 
   std::vector<std::function<void()>> tasks;
 
-  //auto && sources = optionsParser.getSourcePathList();
-  auto && sources = optionsParser.getCompilations().getAllFiles();
-  const size_t total = std::size(sources);
+  auto && sources = optionsParser.getSourcePathList();
+  //auto && sources = optionsParser.getCompilations().getAllFiles();
+
+  //const size_t total = std::size(sources);
+
+  //for (auto && file : sources)
+  //{
+  //  if (++i > limit)
+  //    break;
+
+  //  tasks.emplace_back(
+  //    [i, total, file, &optionsParser]
+  //    {
+  //      static std::atomic_int32_t counter;
+  //      std::cout << "[" << counter++ << "/" << total << "] " << file << std::endl;
+  //      ClangTool Tool(optionsParser.getCompilations(), file);
+  //      Tool.run(createXUnusedFrontendActionFactory().get());
+
+  //      //auto cmd = optionsParser.getCompilations().getCompileCommands("").front();
+  //      //auto ast = buildASTFromCodeWithArgs("", cmd.CommandLine);
+  //      //ast.get()->getASTContext()
+  //    });
+  //}
+
+  //std::for_each(std::execution::par_unseq, std::begin(tasks), std::end(tasks), [](auto && f) { f(); });
+
+  //finalize();
 
   for (auto && file : sources)
   {
-    if (++i > limit)
-      break;
+    std::cout << file << std::endl;
+    //ClangTool Tool(optionsParser.getCompilations(), file);
 
-    tasks.emplace_back(
-      [i, total, file, &optionsParser]
-      {
-        static std::atomic_int32_t counter;
-        std::cout << "[" << counter++ << "/" << total << "] " << file << std::endl;
-        ClangTool Tool(optionsParser.getCompilations(), file);
-        Tool.run(createXUnusedFrontendActionFactory().get());
-      });
+    auto cmds = optionsParser.getCompilations().getCompileCommands(file);
+    if (!std::empty(cmds))
+
+    {
+      //auto && cmd = cmds.front();
+      //const std::string code = std::string{std::istreambuf_iterator<char>{std::ifstream{cmd.Filename}}, {}};
+      //auto ast = buildASTFromCodeWithArgs(code, cmd.CommandLine, cmd.Filename, "");
+      //ast.get()->getASTContext();
+
+      ClangTool Tool(optionsParser.getCompilations(), file);
+      //Tool.run(createXUnusedFrontendActionFactory().get());
+
+      std::vector<std::unique_ptr<ASTUnit>> ASTs;
+      Tool.buildASTs(ASTs);
+
+      std::cout << ASTs[0].get()->getMainFileName().str() << std::endl;
+    }
   }
-
-  std::for_each(std::execution::par_unseq, std::begin(tasks), std::end(tasks), [](auto && f) { f(); });
-
-  finalize();
-
 
   return 0;
 }
