@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <execution>
 #include <iostream>
+#include <filesystem>
 
 using namespace clang;
 using namespace llvm;
@@ -58,8 +59,8 @@ int main(int argc, const char ** argv)
 
   std::vector<std::function<void()>> tasks;
 
-  auto && sources = optionsParser.getSourcePathList();
-  //auto && sources = optionsParser.getCompilations().getAllFiles();
+  //auto && sources = optionsParser.getSourcePathList();
+  auto && sources = optionsParser.getCompilations().getAllFiles();
 
   //const size_t total = std::size(sources);
 
@@ -86,29 +87,23 @@ int main(int argc, const char ** argv)
 
   //finalize();
 
-  for (auto && file : sources)
-  {
-    std::cout << file << std::endl;
-    //ClangTool Tool(optionsParser.getCompilations(), file);
 
-    auto cmds = optionsParser.getCompilations().getCompileCommands(file);
-    if (!std::empty(cmds))
+  std::for_each(std::execution::par_unseq, std::begin(sources), std::end(sources),
+                [&optionsParser](auto && file)
+                {
+                  std::cout << file << std::endl;
 
-    {
-      //auto && cmd = cmds.front();
-      //const std::string code = std::string{std::istreambuf_iterator<char>{std::ifstream{cmd.Filename}}, {}};
-      //auto ast = buildASTFromCodeWithArgs(code, cmd.CommandLine, cmd.Filename, "");
-      //ast.get()->getASTContext();
-
-      ClangTool Tool(optionsParser.getCompilations(), file);
-      //Tool.run(createXUnusedFrontendActionFactory().get());
-
-      std::vector<std::unique_ptr<ASTUnit>> ASTs;
-      Tool.buildASTs(ASTs);
-
-      std::cout << ASTs[0].get()->getMainFileName().str() << std::endl;
-    }
-  }
+                  auto cmds = optionsParser.getCompilations().getCompileCommands(file);
+                  if (!std::empty(cmds))
+                  {
+                    auto && cmd = cmds.front();
+                    ClangTool Tool(optionsParser.getCompilations(), file);
+                    std::vector<std::unique_ptr<ASTUnit>> ASTs;
+                    Tool.buildASTs(ASTs);
+                    for (auto & ast : ASTs)
+                      ast->Save("A:/ast/" + std::filesystem::path{cmd.Filename}.filename().string() + ".ast");
+                  }
+                });
 
   return 0;
 }
