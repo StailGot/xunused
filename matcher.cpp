@@ -94,12 +94,10 @@ public:
   void finalize(const SourceManager & SM)
   {
     std::unique_lock<std::mutex> lockGuard(g_mutex);
-    //std::vector<const FunctionDecl *> unusedDefs;
-    //std::set_difference(_defs.begin(), _defs.end(), _uses.begin(), _uses.end(), std::back_inserter(unusedDefs));
 
     for (auto * F : _defs)
     {
-      F = F->getDefinition();
+      //F = F->getDefinition();
       assert(F);
       if (auto USR = getUSRForDecl(F))
       {
@@ -127,11 +125,12 @@ public:
         it->second.declarations = getDeclarations(F, SM);
 
 
-        if (it->second.definition)
+        //if (it->second.definition)
           if (auto * ctrDef = dyn_cast<CXXConstructorDecl>(it->second.definition))
           {
             if (auto classDef = ctrDef->getParent())
-              if (auto name = getUSRForDecl(classDef))
+            if (auto classDeff = classDef->getDefinition() )
+              if (auto name = getUSRForDecl(classDeff))
               {
                 g_AllClasses[*name].push_back(it->second);
               }
@@ -311,7 +310,7 @@ void finalize()
     {
       auto && ctr = ctrs[0];
 
-      if (auto def = ctr.definition)
+      //if (auto def = ctr.definition)
       {
         llvm::errs() << ctr.filename << ":" << ctr.classLine << ": warning:"
                      << " Class '" << ctr.className << "' is unused\n";

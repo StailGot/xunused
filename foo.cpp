@@ -12,28 +12,17 @@
 //{
 //}
 
-//#include "foo.hpp"
-
 struct Foo
 {
-  Foo(int, int, int) {}
-  //Foo(char) {}
-  //Foo(float) {}
+  //Foo(int);
+  Foo(int) {}
 };
 
-struct Bar : Foo
-{
-
-};
-//void bar()
-//{
-//}
+//Foo::Foo(int) {}
 
 int main(int argc, char const * argv[])
 {
-  //Foo * f = new Foo{42, 0, 1};
-  //Foo{42};
-  //Bar{42};
+  Foo foo{42};
 }
 
 // m declRefExpr(isExpansionInMainFile()).bind("declRef")

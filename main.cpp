@@ -62,8 +62,8 @@ int main(int argc, const char ** argv)
 
   std::vector<std::function<void()>> tasks;
 
-  //auto && sources = optionsParser.getSourcePathList();
-  auto && sources = optionsParser.getCompilations().getAllFiles();
+  auto && sources = optionsParser.getSourcePathList();
+  //auto && sources = optionsParser.getCompilations().getAllFiles();
 
   const size_t total = std::size(sources);
 
