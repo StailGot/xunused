@@ -55,9 +55,16 @@ struct DefInfo
   std::vector<DeclLoc> declarations;
 };
 
+
+struct StructDefInfo
+{
+  const CXXRecordDecl * decl;
+  std::set<std::int64_t> constructors;
+};
+
 std::mutex g_mutex;
 std::map<std::string, DefInfo> g_allDecls;
-std::map<std::string, std::set<std::int64_t>> g_allClassDecls;
+std::map<std::string, StructDefInfo> g_allClassDecls;
 
 bool getUSRForDecl(const Decl * decl, std::string & USR)
 {
@@ -103,7 +110,9 @@ public:
         if (!getUSRForDecl(def, USR))
           continue;
 
-        g_allClassDecls[USR].emplace(classDef->getID());
+        auto && ctr = g_allClassDecls[USR];
+        ctr.constructors.emplace(classDef->getID());
+        ctr.decl = classDef->getParent();
       }
     }
 
@@ -307,7 +316,7 @@ void finalize()
   for (auto & [classDecl, ctrs] : g_allClassDecls)
   {
     llvm::errs() << classDecl << " ";
-    for (auto && ctr : ctrs)
+    for (auto && ctr : ctrs.constructors)
     {
       llvm::errs() << ctr << " ";
     }
@@ -318,7 +327,7 @@ void finalize()
   {
     if (I.definition && I.uses == 0)
     {
-      llvm::errs() << decl << " " << I.filename << ":" << I.line << ": warning:"
+      llvm::errs() << I.filename << ":" << I.line << ": warning:"
                    << " Function '" << I.name << "' is unused";
 
       if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition))
