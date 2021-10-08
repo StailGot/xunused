@@ -57,6 +57,7 @@ struct DefInfo
 
 std::mutex g_mutex;
 std::map<std::string, DefInfo> g_allDecls;
+std::map<std::string, std::vector<std::int64_t>> g_allClassDecls;
 
 bool getUSRForDecl(const Decl * decl, std::string & USR)
 {
@@ -93,12 +94,14 @@ public:
     std::vector<const FunctionDecl *> unusedDefs;
     std::set_difference(_defs.begin(), _defs.end(), _uses.begin(), _uses.end(), std::back_inserter(unusedDefs));
 
-    //for (auto & fn : _uses)
-    for (auto & fn : _defs)
+    for (auto & def : _defs)
+    //for (auto & u : _uses)
     {
-      if (auto * MD = dyn_cast<CXXConstructorDecl>(fn))
+      //if (auto * MDU = dyn_cast<CXXConstructorDecl>(u))
+      if (auto * classDef = dyn_cast<CXXConstructorDecl>(def))
       {
-        llvm::outs() << MD->getParent()->getName() << " " << MD->getParent()->getID() << "\n";
+        llvm::outs() << classDef->getParent()->getQualifiedNameAsString() << " " << classDef->getParent()->getID() << "\n";
+        g_allClassDecls[classDef->getParent()->getQualifiedNameAsString()].push_back(classDef->getParent()->getID());
       }
     }
 
@@ -206,8 +209,8 @@ public:
         return;
 
       // scan headers
-      //if (!Result.SourceManager->isWrittenInMainFile(begin))
-      //  return;
+      if (!Result.SourceManager->isWrittenInMainFile(begin))
+        return;
 
       if (auto * MD = dyn_cast<CXXMethodDecl>(F))
       {
@@ -299,12 +302,18 @@ std::unique_ptr<tooling::FrontendActionFactory> createXUnusedFrontendActionFacto
 
 void finalize()
 {
+  //for (auto & [decl, I] : g_allClassDecls)
   for (auto & [decl, I] : g_allDecls)
   {
     if (I.definition && I.uses == 0)
     {
       llvm::errs() << I.filename << ":" << I.line << ": warning:"
                    << " Function '" << I.name << "' is unused";
+
+      if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition))
+      {
+        llvm::errs() << " " << classDef->getParent()->getID();
+      }
       for (auto & D : I.declarations)
       {
         llvm::errs() << " " << D.Filename << ":" << D.Line << ": note:"

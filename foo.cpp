@@ -14,12 +14,16 @@
 
 #include "foo.hpp"
 
-//struct Foo
-//{
-//  Foo(int) {}
-//  Foo(char) {}
-//  Foo(float) {}
-//};
+struct Foo
+{
+  Foo(int) {}
+  Foo(char) {}
+  Foo(float) {}
+};
+
+void bar()
+{
+}
 
 int main(int argc, char const * argv[])
 {
