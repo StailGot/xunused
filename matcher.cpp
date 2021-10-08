@@ -132,7 +132,9 @@ public:
           {
             if (auto classDef = ctrDef->getParent())
               if (auto name = getUSRForDecl(classDef))
+              {
                 g_AllClasses[*name].push_back(it->second);
+              }
           }
       }
     }

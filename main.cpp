@@ -57,7 +57,7 @@ int main(int argc, const char ** argv)
 
   auto & optionsParser = expectedParser.get();
 
-  const size_t limit = 300;
+  const size_t limit = 300000;
   size_t i = 0;
 
   std::vector<std::function<void()>> tasks;

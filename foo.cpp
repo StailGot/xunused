@@ -16,17 +16,22 @@
 
 struct Foo
 {
-  Foo(int) {}
+  Foo(int, int, int) {}
   //Foo(char) {}
   //Foo(float) {}
 };
 
+struct Bar : Foo
+{
+
+};
 //void bar()
 //{
 //}
 
 int main(int argc, char const * argv[])
 {
+  //Foo * f = new Foo{42, 0, 1};
   //Foo{42};
   //Bar{42};
 }
