@@ -54,11 +54,16 @@ struct DefInfo
   std::string name;
   std::string filename;
   unsigned line;
+  unsigned classLine;
+  std::string className;
+
   std::vector<DeclLoc> declarations;
 };
 
 std::mutex g_mutex;
 std::map<std::string, DefInfo> g_allDecls;
+std::map<std::string, std::vector<DefInfo>> g_AllClasses;
+
 
 std::optional<std::string> getUSRForDecl(const Decl * decl)
 {
@@ -111,7 +116,24 @@ public:
         it->second.filename = SM.getFilename(Begin).str();
         it->second.line = SM.getSpellingLineNumber(Begin);
 
+        if (auto ctrDef = dyn_cast<CXXConstructorDecl>(F))
+          if (auto classDef = ctrDef->getParent())
+          {
+            auto Begin = classDef->getSourceRange().getBegin();
+            it->second.classLine = SM.getSpellingLineNumber(Begin);
+            it->second.className = classDef->getQualifiedNameAsString();
+          }
+
         it->second.declarations = getDeclarations(F, SM);
+
+
+        if (it->second.definition)
+          if (auto * ctrDef = dyn_cast<CXXConstructorDecl>(it->second.definition))
+          {
+            if (auto classDef = ctrDef->getParent())
+              if (auto name = getUSRForDecl(classDef))
+                g_AllClasses[*name].push_back(it->second);
+          }
       }
     }
 
@@ -281,27 +303,17 @@ std::unique_ptr<tooling::FrontendActionFactory> createXUnusedFrontendActionFacto
 
 void finalize()
 {
-  std::map<std::string, std::vector<DefInfo>> classes;
-  for (auto & [decl, I] : g_allDecls)
-  {
-    if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition); classDef)
-    {
-      if (auto name = getUSRForDecl(classDef->getParent()))
-        classes[*name].push_back(I);
-    }
-  }
-
-  for (auto && [classEntry, ctrs] : classes)
+  for (auto && [classEntry, ctrs] : g_AllClasses)
   {
     if (std::all_of(std::begin(ctrs), std::end(ctrs), [](const DefInfo & info) { return info.uses == 0; }))
     {
-      auto classDecl = dyn_cast<CXXConstructorDecl>(ctrs[0].definition)->getParent();
-      auto & SM = classDecl->getASTContext().getSourceManager();
+      auto && ctr = ctrs[0];
 
-      auto Begin = classDecl->getSourceRange().getBegin();
-
-      llvm::errs() << SM.getFilename(Begin).str() << ":" << SM.getSpellingLineNumber(Begin) << ": warning:"
-                   << " Class '" << classDecl->getQualifiedNameAsString() << "' is unused\n";
+      if (auto def = ctr.definition)
+      {
+        llvm::errs() << ctr.filename << ":" << ctr.classLine << ": warning:"
+                     << " Class '" << ctr.className << "' is unused\n";
+      }
     }
   }
 
