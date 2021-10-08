@@ -57,7 +57,7 @@ struct DefInfo
 
 std::mutex g_mutex;
 std::map<std::string, DefInfo> g_allDecls;
-std::map<std::string, std::vector<std::int64_t>> g_allClassDecls;
+std::map<std::string, std::set<std::int64_t>> g_allClassDecls;
 
 bool getUSRForDecl(const Decl * decl, std::string & USR)
 {
@@ -95,13 +95,10 @@ public:
     std::set_difference(_defs.begin(), _defs.end(), _uses.begin(), _uses.end(), std::back_inserter(unusedDefs));
 
     for (auto & def : _defs)
-    //for (auto & u : _uses)
     {
-      //if (auto * MDU = dyn_cast<CXXConstructorDecl>(u))
       if (auto * classDef = dyn_cast<CXXConstructorDecl>(def))
       {
-        llvm::outs() << classDef->getParent()->getQualifiedNameAsString() << " " << classDef->getParent()->getID() << "\n";
-        g_allClassDecls[classDef->getParent()->getQualifiedNameAsString()].push_back(classDef->getParent()->getID());
+        g_allClassDecls[classDef->getParent()->getQualifiedNameAsString()].emplace(classDef->getID());
       }
     }
 
@@ -302,7 +299,15 @@ std::unique_ptr<tooling::FrontendActionFactory> createXUnusedFrontendActionFacto
 
 void finalize()
 {
-  //for (auto & [decl, I] : g_allClassDecls)
+  for (auto & [classDecl, ctrs] : g_allClassDecls)
+  {
+    llvm::errs() << classDecl << " ";
+    for (auto && ctr : ctrs)
+    {
+      llvm::errs() << ctr << " ";
+    }
+  }
+
   for (auto & [decl, I] : g_allDecls)
   {
     if (I.definition && I.uses == 0)
@@ -312,7 +317,8 @@ void finalize()
 
       if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition))
       {
-        llvm::errs() << " " << classDef->getParent()->getID();
+        //llvm::errs() << " " << classDef->getParent()->getID();
+        llvm::errs() << " " << classDef->getID();
       }
       for (auto & D : I.declarations)
       {
