@@ -1,4 +1,5 @@
-struct bar
+struct Bar
 {
-  void bas();
+  Bar(int) {}
+  Bar(float) {}
 };

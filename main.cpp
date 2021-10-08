@@ -3,10 +3,13 @@
 #include "clang/Serialization/ASTReader.h"
 #include "clang/Serialization/ASTWriter.h"
 
+#include "clang/Frontend/CompilerInstance.h"
+
 #include "clang/AST/ASTImporter.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -62,48 +65,26 @@ int main(int argc, const char ** argv)
   //auto && sources = optionsParser.getSourcePathList();
   auto && sources = optionsParser.getCompilations().getAllFiles();
 
-  //const size_t total = std::size(sources);
+  const size_t total = std::size(sources);
 
-  //for (auto && file : sources)
-  //{
-  //  if (++i > limit)
-  //    break;
+  for (auto && file : sources)
+  {
+    if (++i > limit)
+      break;
 
-  //  tasks.emplace_back(
-  //    [i, total, file, &optionsParser]
-  //    {
-  //      static std::atomic_int32_t counter;
-  //      std::cout << "[" << counter++ << "/" << total << "] " << file << std::endl;
-  //      ClangTool Tool(optionsParser.getCompilations(), file);
-  //      Tool.run(createXUnusedFrontendActionFactory().get());
+    tasks.emplace_back(
+      [i, total, file, &optionsParser]
+      {
+        static std::atomic_int32_t counter;
+        std::cout << "[" << counter++ << "/" << total << "] " << file << std::endl;
+        ClangTool Tool(optionsParser.getCompilations(), file);
+        Tool.run(createXUnusedFrontendActionFactory().get());
+      });
+  }
 
-  //      //auto cmd = optionsParser.getCompilations().getCompileCommands("").front();
-  //      //auto ast = buildASTFromCodeWithArgs("", cmd.CommandLine);
-  //      //ast.get()->getASTContext()
-  //    });
-  //}
+  std::for_each(std::execution::par_unseq, std::begin(tasks), std::end(tasks), [](auto && f) { f(); });
 
-  //std::for_each(std::execution::par_unseq, std::begin(tasks), std::end(tasks), [](auto && f) { f(); });
-
-  //finalize();
-
-
-  std::for_each(std::execution::par_unseq, std::begin(sources), std::end(sources),
-                [&optionsParser](auto && file)
-                {
-                  std::cout << file << std::endl;
-
-                  auto cmds = optionsParser.getCompilations().getCompileCommands(file);
-                  if (!std::empty(cmds))
-                  {
-                    auto && cmd = cmds.front();
-                    ClangTool Tool(optionsParser.getCompilations(), file);
-                    std::vector<std::unique_ptr<ASTUnit>> ASTs;
-                    Tool.buildASTs(ASTs);
-                    for (auto & ast : ASTs)
-                      ast->Save("A:/ast/" + std::filesystem::path{cmd.Filename}.filename().string() + ".ast");
-                  }
-                });
+  finalize();
 
   return 0;
 }

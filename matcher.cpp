@@ -93,6 +93,15 @@ public:
     std::vector<const FunctionDecl *> unusedDefs;
     std::set_difference(_defs.begin(), _defs.end(), _uses.begin(), _uses.end(), std::back_inserter(unusedDefs));
 
+    //for (auto & fn : _uses)
+    for (auto & fn : _defs)
+    {
+      if (auto * MD = dyn_cast<CXXConstructorDecl>(fn))
+      {
+        llvm::outs() << MD->getParent()->getName() << " " << MD->getParent()->getID() << "\n";
+      }
+    }
+
     for (auto * F : unusedDefs)
     {
       F = F->getDefinition();
@@ -196,8 +205,9 @@ public:
       if (Result.SourceManager->isInSystemHeader(begin))
         return;
 
-      if (!Result.SourceManager->isWrittenInMainFile(begin))
-        return;
+      // scan headers
+      //if (!Result.SourceManager->isWrittenInMainFile(begin))
+      //  return;
 
       if (auto * MD = dyn_cast<CXXMethodDecl>(F))
       {
