@@ -98,7 +98,12 @@ public:
     {
       if (auto * classDef = dyn_cast<CXXConstructorDecl>(def))
       {
-        g_allClassDecls[classDef->getParent()->getQualifiedNameAsString()].emplace(classDef->getID());
+        auto def = classDef->getParent()->getDefinition();
+        std::string USR;
+        if (!getUSRForDecl(def, USR))
+          continue;
+
+        g_allClassDecls[USR].emplace(classDef->getID());
       }
     }
 
@@ -306,13 +311,14 @@ void finalize()
     {
       llvm::errs() << ctr << " ";
     }
+    llvm::errs() << "\n";
   }
 
   for (auto & [decl, I] : g_allDecls)
   {
     if (I.definition && I.uses == 0)
     {
-      llvm::errs() << I.filename << ":" << I.line << ": warning:"
+      llvm::errs() << decl << " " << I.filename << ":" << I.line << ": warning:"
                    << " Function '" << I.name << "' is unused";
 
       if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition))
