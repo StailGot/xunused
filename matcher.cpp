@@ -59,7 +59,7 @@ struct DefInfo
 struct StructDefInfo
 {
   const CXXRecordDecl * decl;
-  std::set<std::int64_t> constructors;
+  std::set<std::string> constructors;
 };
 
 std::mutex g_mutex;
@@ -103,16 +103,17 @@ public:
 
     for (auto & def : _defs)
     {
-      if (auto * classDef = dyn_cast<CXXConstructorDecl>(def))
+      if (auto * ctrDef = dyn_cast<CXXConstructorDecl>(def))
       {
-        auto def = classDef->getParent()->getDefinition();
-        std::string USR;
-        if (!getUSRForDecl(def, USR))
+        auto classDef = ctrDef->getParent()->getDefinition();
+        std::string mangledClassName;
+        std::string mangledFnName;
+        if (!getUSRForDecl(classDef, mangledClassName) || !getUSRForDecl(ctrDef, mangledFnName))
           continue;
 
-        auto && ctr = g_allClassDecls[USR];
-        ctr.constructors.emplace(classDef->getID());
-        ctr.decl = classDef->getParent();
+        auto && ctr = g_allClassDecls[mangledClassName];
+        ctr.constructors.emplace(mangledFnName);
+        ctr.decl = ctrDef->getParent();
       }
     }
 
@@ -322,6 +323,7 @@ void finalize()
     }
     llvm::errs() << "\n";
   }
+
 
   for (auto & [decl, I] : g_allDecls)
   {
