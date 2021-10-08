@@ -12,18 +12,15 @@
 //{
 //}
 
-struct Foo
-{
-  Foo(int);
-  //Foo(int) {}
-};
 
-//Foo::Foo(int) {}
+#include "foo.hpp"
+#include <memory>
 
 int main(int argc, char const * argv[])
 {
-  //Foo foo{42};
+  //std::make_unique<Foo>();
 }
+
 
 // m declRefExpr(isExpansionInMainFile()).bind("declRef")
 // clang-query 'Source\3D\K3dDoc04\D3vedit.cpp'

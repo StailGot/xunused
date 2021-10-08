@@ -1,5 +1,8 @@
-struct Bar
+struct Foo
 {
-  Bar(int) {}
-  Bar(float) {}
+  Foo();
 };
+
+inline Foo::Foo()
+{
+}
