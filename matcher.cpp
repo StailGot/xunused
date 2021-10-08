@@ -9,9 +9,11 @@
 #include "clang/Tooling/AllTUsExecution.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/Signals.h"
+
 #include <memory>
 #include <mutex>
 #include <map>
+#include <optional>
 
 
 using namespace clang;
@@ -66,15 +68,12 @@ std::mutex g_mutex;
 std::map<std::string, DefInfo> g_allDecls;
 std::map<std::string, StructDefInfo> g_allClassDecls;
 
-bool getUSRForDecl(const Decl * decl, std::string & USR)
+std::optional<std::string> getUSRForDecl(const Decl * decl)
 {
   llvm::SmallVector<char, 128> buff;
-
   if (index::generateUSRForDecl(decl, buff))
-    return false;
-
-  USR = std::string(buff.data(), buff.size());
-  return true;
+    return std::nullopt;
+  return std::string(buff.data(), buff.size());
 }
 
 /// Returns all declarations that are not the definition of F
@@ -106,14 +105,14 @@ public:
       if (auto * ctrDef = dyn_cast<CXXConstructorDecl>(def))
       {
         auto classDef = ctrDef->getParent()->getDefinition();
-        std::string mangledClassName;
-        std::string mangledFnName;
-        if (!getUSRForDecl(classDef, mangledClassName) || !getUSRForDecl(ctrDef, mangledFnName))
-          continue;
+        if (auto mangledClassName = getUSRForDecl(classDef), mangledFnName = getUSRForDecl(ctrDef);
+            mangledFnName && mangledFnName)
 
-        auto && ctr = g_allClassDecls[mangledClassName];
-        ctr.constructors.emplace(mangledFnName);
-        ctr.decl = ctrDef->getParent();
+        {
+          auto && ctr = g_allClassDecls[*mangledClassName];
+          ctr.constructors.emplace(*mangledFnName);
+          ctr.decl = ctrDef->getParent();
+        }
       }
     }
 
@@ -121,22 +120,21 @@ public:
     {
       F = F->getDefinition();
       assert(F);
-      std::string USR;
-      if (!getUSRForDecl(F, USR))
-        continue;
-
-      auto && [it, is_inserted] = g_allDecls.emplace(std::move(USR), DefInfo{F, 0});
-      if (!is_inserted)
+      if (auto USR = getUSRForDecl(F))
       {
-        it->second.definition = F;
+        auto && [it, is_inserted] = g_allDecls.emplace(std::move(*USR), DefInfo{F, 0});
+        if (!is_inserted)
+        {
+          it->second.definition = F;
+        }
+        it->second.name = F->getQualifiedNameAsString();
+
+        auto Begin = F->getSourceRange().getBegin();
+        it->second.filename = SM.getFilename(Begin).str();
+        it->second.line = SM.getSpellingLineNumber(Begin);
+
+        it->second.declarations = getDeclarations(F, SM);
       }
-      it->second.name = F->getQualifiedNameAsString();
-
-      auto Begin = F->getSourceRange().getBegin();
-      it->second.filename = SM.getFilename(Begin).str();
-      it->second.line = SM.getSpellingLineNumber(Begin);
-
-      it->second.declarations = getDeclarations(F, SM);
     }
 
     // Weak functions are not the definitive definition. Remove it from
@@ -149,24 +147,15 @@ public:
 
     std::set_difference(_uses.begin(), _uses.end(), _defs.begin(), _defs.end(), std::back_inserter(externalUses));
 
-    /*for (auto *F : Uses) {
-        llvm::errs() << "Uses: " << F << " " << F->getNameAsString() << "\n";
-    }
-    for (auto *F : Defs) {
-        llvm::errs() << "Defs: " << F << " " << F->getNameAsString() << "\n";
-    }*/
-
     for (auto * F : externalUses)
     {
-      // llvm::errs() << "ExternalUses: " << F->getNameAsString() << "\n";
-      std::string USR;
-      if (!getUSRForDecl(F, USR))
-        continue;
-      // llvm::errs() << "ExternalUses: " << USR << "\n";
-      auto && [it, is_inserted] = g_allDecls.emplace(std::move(USR), DefInfo{nullptr, 1});
-      if (!is_inserted)
+      if (auto USR = getUSRForDecl(F))
       {
-        it->second.uses++;
+        auto && [it, is_inserted] = g_allDecls.emplace(std::move(*USR), DefInfo{nullptr, 1});
+        if (!is_inserted)
+        {
+          it->second.uses++;
+        }
       }
     }
   }
@@ -325,6 +314,14 @@ void finalize()
   }
 
 
+  std::set<std::string> ctrs;
+  for (auto & [decl, I] : g_allDecls)
+  {
+    if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition))
+    {
+    }
+  }
+
   for (auto & [decl, I] : g_allDecls)
   {
     if (I.definition && I.uses == 0)
@@ -332,11 +329,7 @@ void finalize()
       llvm::errs() << I.filename << ":" << I.line << ": warning:"
                    << " Function '" << I.name << "' is unused";
 
-      if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition))
-      {
-        //llvm::errs() << " " << classDef->getParent()->getID();
-        llvm::errs() << " " << classDef->getID();
-      }
+
       for (auto & D : I.declarations)
       {
         llvm::errs() << " " << D.Filename << ":" << D.Line << ": note:"
