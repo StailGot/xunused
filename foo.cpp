@@ -17,7 +17,7 @@
 struct Foo
 {
   Foo(int) {}
-  Foo(char) {}
+  //Foo(char) {}
   //Foo(float) {}
 };
 
@@ -27,7 +27,7 @@ struct Foo
 
 int main(int argc, char const * argv[])
 {
-  Foo{42};
+  //Foo{42};
   //Bar{42};
 }
 

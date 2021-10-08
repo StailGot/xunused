@@ -57,16 +57,8 @@ struct DefInfo
   std::vector<DeclLoc> declarations;
 };
 
-
-struct StructDefInfo
-{
-  const CXXRecordDecl * decl;
-  std::set<std::string> constructors;
-};
-
 std::mutex g_mutex;
 std::map<std::string, DefInfo> g_allDecls;
-std::map<std::string, StructDefInfo> g_allClassDecls;
 
 std::optional<std::string> getUSRForDecl(const Decl * decl)
 {
@@ -99,22 +91,6 @@ public:
     std::unique_lock<std::mutex> lockGuard(g_mutex);
     //std::vector<const FunctionDecl *> unusedDefs;
     //std::set_difference(_defs.begin(), _defs.end(), _uses.begin(), _uses.end(), std::back_inserter(unusedDefs));
-
-    for (auto & def : _defs)
-    {
-      if (auto * ctrDef = dyn_cast<CXXConstructorDecl>(def))
-      {
-        auto classDef = ctrDef->getParent()->getDefinition();
-        if (auto mangledClassName = getUSRForDecl(classDef), mangledFnName = getUSRForDecl(ctrDef);
-            mangledFnName && mangledFnName)
-
-        {
-          auto && ctr = g_allClassDecls[*mangledClassName];
-          ctr.constructors.emplace(*mangledFnName);
-          ctr.decl = ctrDef->getParent();
-        }
-      }
-    }
 
     for (auto * F : _defs)
     {
@@ -305,17 +281,6 @@ std::unique_ptr<tooling::FrontendActionFactory> createXUnusedFrontendActionFacto
 
 void finalize()
 {
-  //for (auto & [classDecl, ctrs] : g_allClassDecls)
-  //{
-  //  llvm::errs() << classDecl << " ";
-  //  for (auto && ctr : ctrs.constructors)
-  //  {
-  //    llvm::errs() << ctr << " ";
-  //  }
-  //  llvm::errs() << "\n";
-  //}
-
-
   std::map<std::string, std::vector<DefInfo>> classes;
   for (auto & [decl, I] : g_allDecls)
   {
@@ -326,23 +291,35 @@ void finalize()
     }
   }
 
-  auto a = g_allDecls;
-
-  for (auto & [decl, I] : a)
+  for (auto && [classEntry, ctrs] : classes)
   {
-    if (I.definition && I.uses == 0)
+    if (std::all_of(std::begin(ctrs), std::end(ctrs), [](const DefInfo & info) { return info.uses == 0; }))
     {
-      llvm::errs() << I.filename << ":" << I.line << ": warning:"
-                   << " Function '" << I.name << "' is unused";
+      auto classDecl = dyn_cast<CXXConstructorDecl>(ctrs[0].definition)->getParent();
+      auto & SM = classDecl->getASTContext().getSourceManager();
 
+      auto Begin = classDecl->getSourceRange().getBegin();
 
-      for (auto & D : I.declarations)
-      {
-        llvm::errs() << " " << D.Filename << ":" << D.Line << ": note:"
-                     << " declared here";
-      }
-
-      llvm::errs() << "\n";
+      llvm::errs() << SM.getFilename(Begin).str() << ":" << SM.getSpellingLineNumber(Begin) << ": warning:"
+                   << " Class '" << classDecl->getQualifiedNameAsString() << "' is unused\n";
     }
   }
+
+  //for (auto & [decl, I] : g_allDecls)
+  //{
+  //  if (I.definition && I.uses == 0)
+  //  {
+  //    llvm::errs() << I.filename << ":" << I.line << ": warning:"
+  //                 << " Function '" << I.name << "' is unused";
+
+
+  //    for (auto & D : I.declarations)
+  //    {
+  //      llvm::errs() << " " << D.Filename << ":" << D.Line << ": note:"
+  //                   << " declared here";
+  //    }
+
+  //    llvm::errs() << "\n";
+  //  }
+  //}
 }
