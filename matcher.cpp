@@ -125,16 +125,14 @@ public:
         it->second.declarations = getDeclarations(F, SM);
 
 
-        //if (it->second.definition)
-          if (auto * ctrDef = dyn_cast<CXXConstructorDecl>(it->second.definition))
-          {
-            if (auto classDef = ctrDef->getParent())
-            if (auto classDeff = classDef->getDefinition() )
-              if (auto name = getUSRForDecl(classDeff))
-              {
-                g_AllClasses[*name].push_back(it->second);
-              }
-          }
+        if (auto * ctrDef = dyn_cast<CXXConstructorDecl>(it->second.definition))
+        {
+          if (auto classDef = ctrDef->getParent())
+            if (auto name = getUSRForDecl(classDef))
+            {
+              g_AllClasses[*name].push_back(it->second);
+            }
+        }
       }
     }
 

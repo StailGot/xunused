@@ -14,15 +14,15 @@
 
 struct Foo
 {
-  //Foo(int);
-  Foo(int) {}
+  Foo(int);
+  //Foo(int) {}
 };
 
 //Foo::Foo(int) {}
 
 int main(int argc, char const * argv[])
 {
-  Foo foo{42};
+  //Foo foo{42};
 }
 
 // m declRefExpr(isExpansionInMainFile()).bind("declRef")
