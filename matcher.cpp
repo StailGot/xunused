@@ -97,8 +97,8 @@ public:
   void finalize(const SourceManager & SM)
   {
     std::unique_lock<std::mutex> lockGuard(g_mutex);
-    std::vector<const FunctionDecl *> unusedDefs;
-    std::set_difference(_defs.begin(), _defs.end(), _uses.begin(), _uses.end(), std::back_inserter(unusedDefs));
+    //std::vector<const FunctionDecl *> unusedDefs;
+    //std::set_difference(_defs.begin(), _defs.end(), _uses.begin(), _uses.end(), std::back_inserter(unusedDefs));
 
     for (auto & def : _defs)
     {
@@ -116,13 +116,15 @@ public:
       }
     }
 
-    for (auto * F : unusedDefs)
+    for (auto * F : _defs)
     {
       F = F->getDefinition();
       assert(F);
       if (auto USR = getUSRForDecl(F))
       {
-        auto && [it, is_inserted] = g_allDecls.emplace(std::move(*USR), DefInfo{F, 0});
+        const size_t useCount = _uses.count(F) ? 1 : 0;
+
+        auto && [it, is_inserted] = g_allDecls.emplace(std::move(*USR), DefInfo{F, useCount});
         if (!is_inserted)
         {
           it->second.definition = F;
@@ -303,26 +305,30 @@ std::unique_ptr<tooling::FrontendActionFactory> createXUnusedFrontendActionFacto
 
 void finalize()
 {
-  for (auto & [classDecl, ctrs] : g_allClassDecls)
-  {
-    llvm::errs() << classDecl << " ";
-    for (auto && ctr : ctrs.constructors)
-    {
-      llvm::errs() << ctr << " ";
-    }
-    llvm::errs() << "\n";
-  }
+  //for (auto & [classDecl, ctrs] : g_allClassDecls)
+  //{
+  //  llvm::errs() << classDecl << " ";
+  //  for (auto && ctr : ctrs.constructors)
+  //  {
+  //    llvm::errs() << ctr << " ";
+  //  }
+  //  llvm::errs() << "\n";
+  //}
 
 
-  std::set<std::string> ctrs;
+  std::map<std::string, std::vector<DefInfo>> classes;
   for (auto & [decl, I] : g_allDecls)
   {
-    if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition))
+    if (auto * classDef = dyn_cast<CXXConstructorDecl>(I.definition); classDef)
     {
+      if (auto name = getUSRForDecl(classDef->getParent()))
+        classes[*name].push_back(I);
     }
   }
 
-  for (auto & [decl, I] : g_allDecls)
+  auto a = g_allDecls;
+
+  for (auto & [decl, I] : a)
   {
     if (I.definition && I.uses == 0)
     {

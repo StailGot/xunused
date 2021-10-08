@@ -18,16 +18,16 @@ struct Foo
 {
   Foo(int) {}
   Foo(char) {}
-  Foo(float) {}
+  //Foo(float) {}
 };
 
-void bar()
-{
-}
+//void bar()
+//{
+//}
 
 int main(int argc, char const * argv[])
 {
-  //Foo{42};
+  Foo{42};
   //Bar{42};
 }
 
