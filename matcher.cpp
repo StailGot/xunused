@@ -209,8 +209,8 @@ public:
         return;
 
       // scan headers
-      //if (!Result.SourceManager->isWrittenInMainFile(begin))
-        //return;
+      if (!Result.SourceManager->isWrittenInMainFile(begin))
+        return;
 
       if (auto * MD = dyn_cast<CXXMethodDecl>(F))
       {
